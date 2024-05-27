@@ -14,6 +14,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Edited by 2023 Peng Yi, <yipeng3@mail2.sysu.edu.cn>
 */
 
 #ifndef GPOPROBLEM_H
@@ -23,8 +25,9 @@
 #include <set>
 #include <map>
 #include <list>
+#include <vector>
 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 namespace GpoSolver
 {
@@ -79,34 +82,34 @@ namespace GpoSolver
         } Status;
 
         // Virtual methods to be automatically generated ==========================
+        virtual int getNumBlocks(void) = 0;
+        virtual int getNumConstraints(void) = 0;
+        virtual int getNumProblemVariables(void) = 0;
+        virtual int getNumPolyConstraints(void) = 0;
+        virtual int getNumObjectiveParams(void) = 0;
+        virtual int getNumConstraintsParams(void) = 0;
+        virtual int getProblemSize(void) = 0;
+        virtual int getRelaxationOrder(void) = 0;
+        virtual int getMaxDegree(void) = 0;
+        virtual int getRankShift(void) = 0;
+        virtual int getBlockSize(int) = 0;
+        virtual const int *getBlockSizes(void) = 0;
 
-        virtual int getNumBlocks(void) const = 0;
-        virtual int getNumConstraints(void) const = 0;
-        virtual int getNumProblemVariables(void) const = 0;
-        virtual int getNumPolyConstraints(void) const = 0;
-        virtual int getNumObjectiveParams(void) const = 0;
-        virtual int getNumConstraintsParams(void) const = 0;
-        virtual int getProblemSize(void) const = 0;
-        virtual int getRelaxationOrder(void) const = 0;
-        virtual int getMaxDegree(void) const = 0;
-        virtual int getRankShift(void) const = 0;
-        virtual int getBlockSize(int) const = 0;
-        virtual const int *getBlockSizes(void) const = 0;
+        virtual double evalPolyObjective(const double *, const double *, const double *) = 0;
+        virtual void evalPolyConstraints(const double *, const double *, double *) = 0;
 
-        virtual double evalPolyObjective(const double *, const double *, const double *) const = 0;
-        virtual void evalPolyConstraints(const double *, const double *, double *) const = 0;
+        virtual const objData *getSdpObjectiveData(void) = 0;
+        virtual const objVar *getSdpObjectiveVariables(void) = 0;
+        virtual int getNumSdpObjectiveData(void) = 0;
+        virtual int getNumSdpObjectiveVariables(void) = 0;
+        virtual void evalSdpObjectiveVariables(const double *, const double *, double **) = 0;
 
-        virtual const objData *getSdpObjectiveData(void) const = 0;
-        virtual const objVar *getSdpObjectiveVariables(void) const = 0;
-        virtual int getNumSdpObjectiveData(void) const = 0;
-        virtual int getNumSdpObjectiveVariables(void) const = 0;
-        virtual void evalSdpObjectiveVariables(const double *, const double *, double **) const = 0;
-
-        virtual const conData *getSdpConstraintsData(void) const = 0;
-        virtual const conVar *getSdpConstraintsVariables(void) const = 0;
-        virtual int getNumSdpConstraintsData(void) const = 0;
-        virtual int getNumSdpConstraintsVariables(void) const = 0;
-        virtual void evalSdpConstraintsVariables(const double *, const double *, double **) const = 0;
+        virtual const conData *getSdpConstraintsData(void) = 0;
+        virtual const conVar *getSdpConstraintsVariables(void) = 0;
+        virtual int getNumSdpConstraintsData(void) = 0;
+        virtual int getNumSdpConstraintsVariables(void) = 0;
+        virtual void evalSdpConstraintsVariables(const double *, const double *, double **) = 0;
+        virtual void initUserDefined(std::vector<Eigen::MatrixXd> M_mat) = 0;
 
         // SDP problem construction ===============================================
 
@@ -120,9 +123,9 @@ namespace GpoSolver
 
         conData _con_data[10000] = {};
         conVar _con_vars[10000] = {};
-        objData _obj_data[1000] = {};
-        objVar _obj_vars[1000] = {};
-        int _block_sizes[100] = {};
+        objData _obj_data[10000] = {};
+        objVar _obj_vars[10000] = {};
+        int _block_sizes[10000] = {};
         int _num_blocks = 3;
         int _num_cons = 9;
         int _num_pcons = 2;
@@ -138,8 +141,6 @@ namespace GpoSolver
         int _num_con_data = 0;
         int _num_con_vars = 0;
 
-        // user define data
-        int mat_size = 0;
 
         int getNumNonzeroBlocks(void) const
         {
@@ -230,120 +231,6 @@ namespace GpoSolver
             for (int i = 0; i < _num_con_vars; i++)
             {
                 _con_vars[i] = con_vars[i];
-            }
-
-            const objData *obj_data = getSdpObjectiveData();
-            for (int i = 0; i < _num_obj_data; i++)
-            {
-                _obj_data[i] = obj_data[i];
-            }
-
-            const objVar *obj_vars = getSdpObjectiveVariables();
-            for (int i = 0; i < _num_obj_vars; i++)
-            {
-                _obj_vars[i] = obj_vars[i];
-            }
-
-            const conData *data = _con_data;
-            block_map.clear();
-            for (int i = 0; i < _num_con_data; i++)
-            {
-                pair<int, int> key = make_pair(data[i].con, data[i].mon);
-                blockMap::iterator blk = block_map.find(key);
-                if (blk == block_map.end())
-                    block_map[key] = make_pair(data + i, 1);
-                else
-                    blk->second.second++;
-
-                conBlockMap::iterator mon = conblock_map.find(data[i].mon);
-                if (mon == conblock_map.end())
-                {
-                    conblock_map[data[i].mon] = set<int>();
-                    conblock_map[data[i].mon].insert(data[i].con);
-                }
-                else
-                    mon->second.insert(data[i].con);
-            }
-
-            const GpoProblem::conVar *vars = _con_vars;
-            convars_map.clear();
-            for (int i = 0; i < _num_con_vars; i++)
-            {
-                pair<int, int> key = make_pair(vars[i].con, vars[i].mon);
-                pair<int, int> val = make_pair(i, vars[i].i);
-                conVarMap::iterator blk = convars_map.find(key);
-                if (blk == convars_map.end())
-                {
-                    convars_map[key] = list<pair<int, int>>();
-                    convars_map[key].push_back(val);
-                }
-                else
-                    blk->second.push_back(val);
-            }
-        }
-
-        void init(const int n)
-        {
-            mat_size = n;
-            _num_blocks = 3;
-            _num_cons = 9;
-            _num_pcons = 2;
-            _num_pvars = 3;
-            _num_rpars = 0;
-            _num_ppars = 0;
-            _problem_size = 5 + n;
-            _relax_order = 1;
-            _max_degree = 2;
-            _rank_shift = 1;
-            _num_obj_data = 1;
-            _num_obj_vars = 0;
-            _num_con_data = 13 + n * (n + 1) + n;
-            _num_con_vars = n * (n + 1);
-
-            const int *block_size = getBlockSizes();
-            for (size_t i = 0; i < _num_blocks; i++)
-            {
-                _block_sizes[i] = block_size[i];
-            }
-            _block_sizes[2] = n;
-
-            const conData *con_data = getSdpConstraintsData();
-            int const_size = 13;
-            int m = const_size;
-            for (int i = 0; i < const_size; i++)
-            {
-                _con_data[i] = con_data[i];
-            }
-            for (unsigned int i = 0; i < n; i++)
-            {
-                for (unsigned int j = i; j < n; j++)
-                {
-                    _con_data[m] = {2, 1, i, j, 0.0};
-                    m++;
-                }
-            }
-            for (unsigned int i = 0; i < n; i++)
-            {
-                for (unsigned int j = i; j < n; j++)
-                {
-                    _con_data[m] = {2, 2, i, j, 0.0};
-                    m++;
-                }
-            }
-            for (unsigned int i = 0; i < n; i++)
-            {
-                _con_data[m] = {2, 3, i, i, 1.0};
-                m++;
-            }
-
-            const conVar *con_vars = getSdpConstraintsVariables();
-            for (int i = 0; i < (n * (n + 1) / 2); i++)
-            {
-                _con_vars[i] = {2, 1, i};
-            }
-            for (int i = 0; i < (n * (n + 1) / 2); i++)
-            {
-                _con_vars[i + n * (n + 1) / 2] = {2, 2, i};
             }
 
             const objData *obj_data = getSdpObjectiveData();

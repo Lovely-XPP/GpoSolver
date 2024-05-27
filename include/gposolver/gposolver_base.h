@@ -14,6 +14,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Edited by 2023 Peng Yi, <yipeng3@mail2.sysu.edu.cn>
 */
 
 #ifndef GPOSOLVER_BASE_H
@@ -28,10 +30,10 @@
 #include <map>
 #include <list>
 #include <vector>
+#include <stdexcept>
 
-#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 
-#include "logging.h"
 #include "gpoproblem.h"
 
 namespace GpoSolver
@@ -549,44 +551,18 @@ namespace GpoSolver
               par_verbose(0)
         {}
 
-        void init_function(const int n)
+        void init_function(std::vector<Eigen::MatrixXd> M_mat)
         {
-            problem.init(n);
-
-            rvars_ptr = new double *[problem._num_obj_vars];
-            if (rvars_ptr == NULL)
-                LOG_FATAL << "Cannot allocate memory";
-
-            cvars_ptr = new double *[problem._num_con_vars];
-            if (cvars_ptr == NULL)
-                LOG_FATAL << "Cannot allocate memory";
-
-            cvmul.resize(problem._num_con_vars);
-            cvmul.setOnes();
-
-            obj_res.resize(problem._num_cons + 1);
-            obj_res.setZero();
-
-            const GpoProblem::objData *odata = problem._obj_data;
-
-            for (int i = 0; i < problem._num_obj_data; i++)
-                obj_res(odata[i].mon) = odata[i].val;
-
-            for (int i = 0; i < problem._num_obj_vars; i++)
-                rvars_ptr[i] = obj_res.data() + problem._obj_vars[i].mon;
-        }
-
-        void init_function(void)
-        {
+            problem.initUserDefined(M_mat);
             problem.init();
 
             rvars_ptr = new double *[problem._num_obj_vars];
             if (rvars_ptr == NULL)
-                LOG_FATAL << "Cannot allocate memory";
+                throw std::runtime_error("Cannot allocate memory");
 
             cvars_ptr = new double *[problem._num_con_vars];
             if (cvars_ptr == NULL)
-                LOG_FATAL << "Cannot allocate memory";
+                throw std::runtime_error("Cannot allocate memory");
 
             cvmul.resize(problem._num_con_vars);
             cvmul.setOnes();
@@ -629,13 +605,13 @@ namespace GpoSolver
             this->pvals = pvals;
 
             if ((num_res != 0) && (rvals == NULL))
-                LOG_FATAL << "(num_res != 0) && (ovals == NULL)";
+                throw std::runtime_error("(num_res != 0) && (ovals == NULL)");
 
             if ((rvals == NULL) && (problem._num_rpars != 0))
-                LOG_FATAL << "Objective function parameters expected: ovals == NULL";
+                throw std::runtime_error("Objective function parameters expected: ovals == NULL");
 
             if ((pvals == NULL) && (problem._num_ppars != 0))
-                LOG_FATAL << "Constraints parameters expected: pvals == NULL";
+                throw std::runtime_error("Constraints parameters expected: pvals == NULL");
 
             sols.clear();
 
@@ -692,7 +668,7 @@ namespace GpoSolver
 
             ifstream bFile(fname);
             if (!bFile)
-                LOG_FATAL << "Cannot open TXT parameter file: " << fname;
+                throw std::runtime_error("Cannot open TXT parameter file: " + string(fname));
 
             bFile >> num_res;
             bFile >> num_ovals;
@@ -701,13 +677,13 @@ namespace GpoSolver
             if (num_ovals != problem._num_rpars)
             {
                 bFile.close();
-                LOG_FATAL << "Number of residual parameters does not match";
+                throw std::runtime_error("Number of residual parameters does not match");
             }
 
             if (num_pvals != problem._num_ppars)
             {
                 bFile.close();
-                LOG_FATAL << "Number of problem parameters does not match";
+                throw std::runtime_error("Number of problem parameters does not match");
             }
 
             ovals.resize(num_ovals, num_res);
@@ -740,7 +716,7 @@ namespace GpoSolver
             else if (param_name == "verbose")
                 return par_verbose;
 
-            LOG_FATAL << "Unrecognized parameter name: " << param_name;
+            throw std::runtime_error("Unrecognized parameter name: " + string(param_name));
             return 0; // should not reach
         }
 
@@ -757,7 +733,7 @@ namespace GpoSolver
             else if (param_name == "pivtol")
                 par_pivtol = val;
             else
-                LOG_FATAL << "Unrecognized parameter name: " << param_name;
+                throw std::runtime_error("Unrecognized parameter name: " + string(param_name));
         }
 
     }; // GPOSolverBase

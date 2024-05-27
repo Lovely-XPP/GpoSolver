@@ -14,6 +14,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Edited by 2023 Peng Yi, <yipeng3@mail2.sysu.edu.cn>
 */
 
 #ifndef GPOSOLVER_SDPA_H
@@ -126,37 +128,9 @@ namespace GpoSolver
         }
 
     public:
-        GpoSolverSdpa()
+        GpoSolverSdpa(std::vector<Eigen::MatrixXd> M_mat)
         {
-            GpoSolverBase<T>::init_function();
-            const GpoProblem::conData *cdata = problem._con_data;
-            const GpoProblem::conVar *cvars = problem._con_vars;
-            int num_cdata = problem._num_con_data;
-            int num_cvars = problem._num_con_vars;
-
-            cdata_sdpa.resize(num_cdata);
-
-            for (int i = 0; i < num_cdata; i++)
-                cdata_sdpa(i) = (cdata[i].mon == 0) ? -cdata[i].val : cdata[i].val;
-
-            for (int i = 0; i < num_cvars; i++)
-            {
-                const GpoProblem::conData *cdatum;
-                int ndata;
-
-                problem.getBlock(cvars[i].con, cvars[i].mon, cdatum, ndata);
-
-                cvmul(i) = (cvars[i].mon == 0) ? -1.0 : 1.0;
-                cvars_ptr[i] = cdata_sdpa.data() + (cdatum - cdata) + cvars[i].i;
-            }
-
-            sdpaParams.setParameterType(SDPA::PARAMETER_DEFAULT);
-            setParameter("verbose", 0);
-        }
-
-        GpoSolverSdpa(const int n)
-        {
-            GpoSolverBase<T>::init_function(n);
+            GpoSolverBase<T>::init_function(M_mat);
             const GpoProblem::conData *cdata = problem._con_data;
             const GpoProblem::conVar *cvars = problem._con_vars;
             int num_cdata = problem._num_con_data;
